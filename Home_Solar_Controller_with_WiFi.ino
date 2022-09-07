@@ -56,12 +56,9 @@ void setup() {
 
  while (WiFi.status() != WL_CONNECTED) {
     ON_GREEN();
-    delay(250);
-    OFF_GREEN();
-    delay(250);
     Serial.print(".");
   }
-
+   OFF_GREEN();
   //If connection successful show IP address in serial monitor
   Serial.println("");
   Serial.print("Connected to ");
@@ -139,10 +136,10 @@ int cl_state = server.client();
   state = digitalRead(CHANGEOVER_OUT);
   acc = acc + state;
   }
-  if (acc == 5 ){
+  if (acc == 15 ){
     ChangeOverState = 1;
   }
-  else if (acc < 2){
+  else if (acc < 8){
     ChangeOverState = 0;
   }
   //Serial.println(ChangeOverState);
