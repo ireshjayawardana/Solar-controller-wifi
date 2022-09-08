@@ -1,7 +1,7 @@
 #include <ESP8266WiFi.h>
 #include <WiFiClient.h>
 #include <ESP8266WebServer.h>
-
+#include <EEPROM.h>
 
 #include "RunningAverage.h"
 #define GREEN_LED D0
@@ -34,6 +34,11 @@ unsigned long interval = 30000;
 unsigned long InverterUp = 0;
 unsigned long runTime = 0;
 unsigned long resetInterval = 0;
+
+const int ADD_AC_OUT_RELAY_STATE = 0;
+const int ADD_INVERTER_ON_RELAY_STATE = 1;
+char inverterRelayPreviousState = 0;
+char ACOutRelayPreviousState = 0;
 //......................................//
 
 ESP8266WebServer server(80); //Server on port 80
@@ -44,6 +49,7 @@ RunningAverage myRA(300);
 void setup() {
  Serial.begin(115200);
  WiFi.begin(ssid, password);     //Connect to your WiFi router
+ EEPROM.begin(2);
  Serial.println("");
  myRA.clear();
  pinMode(GREEN_LED,OUTPUT);
@@ -53,12 +59,17 @@ void setup() {
 
  pinMode(A0,INPUT);
  pinMode(CHANGEOVER_OUT,INPUT);
-
+ int t=0;
  while (WiFi.status() != WL_CONNECTED) {
     ON_GREEN();
     Serial.print(".");
+    delay(5);
+    t++;
+    if (t>5000){
+      break;
+    }
   }
-   OFF_GREEN();
+  OFF_GREEN();
   //If connection successful show IP address in serial monitor
   Serial.println("");
   Serial.print("Connected to ");
@@ -73,10 +84,13 @@ void setup() {
   server.onNotFound(handleNotFound);   
   server.begin();                  //Start server
   Serial.println("HTTP server started");
-WiFi.setAutoReconnect(true);
-WiFi.persistent(true);
+  WiFi.setAutoReconnect(true);
+  WiFi.persistent(true);
 
-manualOveride = false;
+  manualOveride = false;
+
+  ACOutRelayPreviousState = EEPROM.read(ADD_AC_OUT_RELAY_STATE);
+  inverterRelayPreviousState = EEPROM.read(ADD_INVERTER_ON_RELAY_STATE);
 }
 void serverRun(){
   server.handleClient();
@@ -111,18 +125,22 @@ void loop() {
   
 int cl_state = server.client();
  if (cl_state == 0){
-    resetInterval = 900000;
+    resetInterval = 500000;
    
  }
  else {
-  resetInterval = 3600000;
+  resetInterval = 2400000;
  }
  if (millis() - runTime > resetInterval){
   runTime = millis();
   //wifiReconnet();
   //serverRestart();
   Serial.println("server restart");
-  ESP.reset();
+  EEPROM.write(ADD_AC_OUT_RELAY_STATE, ACOutRelayPreviousState);
+  EEPROM.write(ADD_INVERTER_ON_RELAY_STATE, inverterRelayPreviousState);
+  if (EEPROM.commit()){
+    ESP.reset();
+  }
  }
   else{
     serverRun();
@@ -148,7 +166,6 @@ int cl_state = server.client();
    
   batVR =  ADC_READ/30;
   myRA.addValue(batVR);
-  
   batV = myRA.getAverage();
 
   
@@ -169,9 +186,14 @@ int cl_state = server.client();
     SafeToStartInverter = false;
     InverterStarted = false;
     SYSstate = "Low battery, charge batery, inverter is Auto OFF";
+    inverterRelayPreviousState =0;
    // delay(2000);
   }
-
+  if(inverterRelayPreviousState ==1){
+    InverterStarted = true;
+    ON_INVERTER();
+    SYSstate = "Inverter Running";
+  }
 
  if ((ChangeOverState) & (SafeToStartInverter)& (!InverterStarted) & (!manualOveride) & (!LowBattery)){
   InverterUp = millis();
@@ -187,12 +209,14 @@ int cl_state = server.client();
       InverterStarted = true;
       ON_INVERTER();
       SYSstate = "Inverter Running";
+      inverterRelayPreviousState =1;
   }
     
  if ((!ChangeOverState)& (!manualOveride)) {      //removed inverter started check - 
     OFF_INVERTER();
     InverterStarted = false;
     SYSstate = "Inverter Stopped, System good!";
+    inverterRelayPreviousState =0;
   }
 if ((millis() - InverterUp) > 10000)  {
   if (GOOD_BAT_START == 14){
@@ -276,6 +300,7 @@ void handleInverter() {
   OFF_INVERTER();
   Inverterstate = "Inverter OFF"; //Feedback parameter  
   SYSstate = "Remote operation";
+  inverterRelayPreviousState =0;
  }
   else if(t_state == "2")
  {
@@ -307,5 +332,5 @@ void handleInverter() {
 
 
 void handleNotFound(){
-  server.send(404, "text/plain", "404: Not found"); // Send HTTP status 404 (Not Found) when there's no handler for the URI in the request
+  server.send(404, "text/plain", "404: Not found error"); // Send HTTP status 404 (Not Found) when there's no handler for the URI in the request
 }
