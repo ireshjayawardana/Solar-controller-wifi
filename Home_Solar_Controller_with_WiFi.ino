@@ -150,7 +150,7 @@ int cl_state = server.client();
   delay(2);
   int state = 0;
   int acc =0;
-  for(int i = 0; i <5;i++){
+  for(int i = 0; i <15;i++){
   state = digitalRead(CHANGEOVER_OUT);
   acc = acc + state;
   }
