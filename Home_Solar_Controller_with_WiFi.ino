@@ -19,8 +19,8 @@ const char* ssid = "home";
 const char* password = "23456789";
 //...................................//
 bool manualOveride = false;
-float LOW_BAT_CUTOFF = 12.1;
-float GOOD_BAT_START = 12.4;
+float LOW_BAT_CUTOFF = 11.15;
+float GOOD_BAT_START = 12.0;
 bool SafeToStartInverter = false;
 bool InverterStarted =false;
 float batV = 0;
@@ -197,7 +197,7 @@ int cl_state = server.client();
 
  if ((ChangeOverState) & (SafeToStartInverter)& (!InverterStarted) & (!manualOveride) & (!LowBattery)){
   InverterUp = millis();
-  LOW_BAT_CUTOFF = 11.75;      //to get the  changerover turned
+  LOW_BAT_CUTOFF = 11.1;      //to get the  changerover turned
   if(batV > SOLAR_ABLE){
     //LOW_BAT_CUTOFF = 12.55;
     GOOD_BAT_START = 13.6;
@@ -220,10 +220,10 @@ int cl_state = server.client();
   }
 if ((millis() - InverterUp) > 10000)  {
   if (GOOD_BAT_START == 14){
-    LOW_BAT_CUTOFF = 12.55;
+    LOW_BAT_CUTOFF = 11.11;
   }
   else if (GOOD_BAT_START == 13){
-    LOW_BAT_CUTOFF = 12.25;
+    LOW_BAT_CUTOFF = 11.15;
   }
 }
 
