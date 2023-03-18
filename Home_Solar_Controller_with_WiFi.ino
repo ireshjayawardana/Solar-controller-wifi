@@ -2,7 +2,7 @@
 #include <WiFiClient.h>
 #include <ESP8266WebServer.h>
 #include <EEPROM.h>
-
+//use esp8266 board libray version 3.0.1
 #include "RunningAverage.h"
 #define GREEN_LED D0
 #define RED_LED D3
@@ -15,11 +15,11 @@
 #include "webpage.h" //Our HTML webpage contents with javascripts
 
 //SSID and Password of your WiFi router
-const char* ssid = "home";
-const char* password = "23456789";
+const char* ssid = "knight2";
+const char* password = "1Knightrider!";
 //...................................//
 bool manualOveride = false;
-float LOW_BAT_CUTOFF = 11.15;
+float LOW_BAT_CUTOFF = 10.5;
 float GOOD_BAT_START = 12.0;
 bool SafeToStartInverter = false;
 bool InverterStarted =false;
@@ -60,6 +60,20 @@ void setup() {
  pinMode(A0,INPUT);
  pinMode(CHANGEOVER_OUT,INPUT);
  int t=0;
+
+  ACOutRelayPreviousState = EEPROM.read(ADD_AC_OUT_RELAY_STATE);
+  inverterRelayPreviousState = EEPROM.read(ADD_INVERTER_ON_RELAY_STATE);
+//  if(inverterRelayPreviousState ==1){
+//    InverterStarted = true;
+//    ON_INVERTER();
+//    SYSstate = "Inverter Running";
+//  }
+//  if(ACOutRelayPreviousState ==1){
+//  ON_AC();
+//  //Inverterstate = "Grid ON"; //Feedback parameter  
+//  SYSstate = "Remote operation";
+//  }
+
  while (WiFi.status() != WL_CONNECTED) {
     ON_GREEN();
     Serial.print(".");
@@ -89,8 +103,7 @@ void setup() {
 
   manualOveride = false;
 
-  ACOutRelayPreviousState = EEPROM.read(ADD_AC_OUT_RELAY_STATE);
-  inverterRelayPreviousState = EEPROM.read(ADD_INVERTER_ON_RELAY_STATE);
+
 }
 void serverRun(){
   server.handleClient();
@@ -139,7 +152,7 @@ int cl_state = server.client();
   EEPROM.write(ADD_AC_OUT_RELAY_STATE, ACOutRelayPreviousState);
   EEPROM.write(ADD_INVERTER_ON_RELAY_STATE, inverterRelayPreviousState);
   if (EEPROM.commit()){
-    ESP.reset();
+   ESP.reset();
   }
  }
   else{
@@ -162,14 +175,14 @@ int cl_state = server.client();
   }
   //Serial.println(ChangeOverState);
   
-  batV =0;
+  batV = 0;
    
   batVR =  ADC_READ/30;
   myRA.addValue(batVR);
   batV = myRA.getAverage();
 
   
-  if (batV > GOOD_BAT_START){
+  if (batV > LOW_BAT_CUTOFF){
     ON_GREEN();
     OFF_RED();
     SafeToStartInverter = true;
@@ -197,14 +210,14 @@ int cl_state = server.client();
 
  if ((ChangeOverState) & (SafeToStartInverter)& (!InverterStarted) & (!manualOveride) & (!LowBattery)){
   InverterUp = millis();
-  LOW_BAT_CUTOFF = 11.1;      //to get the  changerover turned
+  LOW_BAT_CUTOFF = 10.5;      //to get the  changerover turned
   if(batV > SOLAR_ABLE){
     //LOW_BAT_CUTOFF = 12.55;
     GOOD_BAT_START = 13.6;
   }
   else{
     //LOW_BAT_CUTOFF = 12.25;
-    GOOD_BAT_START = 12.7;
+    GOOD_BAT_START = 12.2;
   }
       InverterStarted = true;
       ON_INVERTER();
@@ -219,11 +232,11 @@ int cl_state = server.client();
     inverterRelayPreviousState =0;
   }
 if ((millis() - InverterUp) > 10000)  {
-  if (GOOD_BAT_START == 14){
-    LOW_BAT_CUTOFF = 11.11;
+  if (GOOD_BAT_START == 13.6){
+    LOW_BAT_CUTOFF = 12.1;
   }
-  else if (GOOD_BAT_START == 13){
-    LOW_BAT_CUTOFF = 11.15;
+  else if (GOOD_BAT_START == 12.2){
+    LOW_BAT_CUTOFF = 10.8;
   }
 }
 
@@ -318,6 +331,7 @@ void handleInverter() {
  else if(t_state == "4")
  {
   manualOveride = false;
+ 
 //  if (InverterStarted){
 //    OFF_INVERTER();
 //    delay(1000);
@@ -325,6 +339,18 @@ void handleInverter() {
   OFF_AC();
   Inverterstate = "Auto"; //Feedback parameter  
   SYSstate = "Auto mode active";
+ }
+  else if(t_state == "5")
+ {
+  manualOveride = true;
+   if (batV > 13){
+      ON_INVERTER();
+      InverterStarted = true;
+      delay(1500);
+      ON_AC();
+   }
+  Inverterstate = "Auto-Routing"; //Feedback parameter  
+  SYSstate = "Auto Routine mode active";
  }
  
  server.send(200, "text/plane", Inverterstate); //Send web page

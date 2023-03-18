@@ -10,6 +10,7 @@ const char MAIN_page[] PROGMEM = R"=====(
   <button type="button" onclick="sendData(2)">Grid ON</button>
   <button type="button" onclick="sendData(3)">Grid OFF</button><BR>
   <button type="button" onclick="sendData(4)">Full auto mode</button><BR>
+  <button type="button" onclick="sendData(5)">Auto Routing Mode</button><BR>
 </div>
 
 <div>
