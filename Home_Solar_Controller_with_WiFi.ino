@@ -37,8 +37,10 @@ unsigned long resetInterval = 0;
 
 const int ADD_AC_OUT_RELAY_STATE = 0;
 const int ADD_INVERTER_ON_RELAY_STATE = 1;
+const int ADD_ROUTINE_STATE = 2;
 char inverterRelayPreviousState = 0;
 char ACOutRelayPreviousState = 0;
+int RoutineStatePreviousState = 0;
 //......................................//
 
 ESP8266WebServer server(80); //Server on port 80
@@ -49,7 +51,7 @@ RunningAverage myRA(300);
 void setup() {
  Serial.begin(115200);
  WiFi.begin(ssid, password);     //Connect to your WiFi router
- EEPROM.begin(2);
+ EEPROM.begin(4);
  Serial.println("");
  myRA.clear();
  pinMode(GREEN_LED,OUTPUT);
@@ -63,11 +65,8 @@ void setup() {
 
   ACOutRelayPreviousState = EEPROM.read(ADD_AC_OUT_RELAY_STATE);
   inverterRelayPreviousState = EEPROM.read(ADD_INVERTER_ON_RELAY_STATE);
-//  if(inverterRelayPreviousState ==1){
-//    InverterStarted = true;
-//    ON_INVERTER();
-//    SYSstate = "Inverter Running";
-//  }
+  RoutineStatePreviousState = EEPROM.read(ADD_ROUTINE_STATE);
+  delay(100);
 //  if(ACOutRelayPreviousState ==1){
 //  ON_AC();
 //  //Inverterstate = "Grid ON"; //Feedback parameter  
@@ -151,6 +150,7 @@ int cl_state = server.client();
   Serial.println("server restart");
   EEPROM.write(ADD_AC_OUT_RELAY_STATE, ACOutRelayPreviousState);
   EEPROM.write(ADD_INVERTER_ON_RELAY_STATE, inverterRelayPreviousState);
+  EEPROM.write(ADD_ROUTINE_STATE, RoutineStatePreviousState);
   if (EEPROM.commit()){
    ESP.reset();
   }
@@ -173,7 +173,7 @@ int cl_state = server.client();
   else if (acc < 8){
     ChangeOverState = 0;
   }
-  //Serial.println(ChangeOverState);
+  //Serial.println(RoutineStatePreviousState);
   
   batV = 0;
    
@@ -206,6 +206,13 @@ int cl_state = server.client();
     InverterStarted = true;
     ON_INVERTER();
     SYSstate = "Inverter Running";
+  }
+  if ((RoutineStatePreviousState == 1)&(!InverterStarted)& (SafeToStartInverter)){
+    ON_AC();
+    delay(2000);
+    InverterStarted = true;
+    ON_INVERTER();
+    SYSstate = "Inverter Routine mode Running";
   }
 
  if ((ChangeOverState) & (SafeToStartInverter)& (!InverterStarted) & (!manualOveride) & (!LowBattery)){
@@ -305,6 +312,7 @@ void handleInverter() {
   InverterStarted = true;
   Inverterstate = "Inverter ON"; //Feedback parameter
   SYSstate = "Remote operation";
+  RoutineStatePreviousState = 0;
  }
  else if(t_state == "0")
  {
@@ -314,12 +322,14 @@ void handleInverter() {
   Inverterstate = "Inverter OFF"; //Feedback parameter  
   SYSstate = "Remote operation";
   inverterRelayPreviousState =0;
+  RoutineStatePreviousState = 0;
  }
   else if(t_state == "2")
  {
   ON_AC();
   Inverterstate = "Grid ON"; //Feedback parameter  
   SYSstate = "Remote operation";
+  RoutineStatePreviousState = 0;
  }
 
  else if(t_state == "3")
@@ -327,6 +337,7 @@ void handleInverter() {
   OFF_AC();
   Inverterstate = "Grid OFF"; //Feedback parameter  
   SYSstate = "Remote operation";
+  RoutineStatePreviousState = 0;
  }
  else if(t_state == "4")
  {
@@ -339,6 +350,7 @@ void handleInverter() {
   OFF_AC();
   Inverterstate = "Auto"; //Feedback parameter  
   SYSstate = "Auto mode active";
+  RoutineStatePreviousState = 0;
  }
   else if(t_state == "5")
  {
@@ -348,6 +360,8 @@ void handleInverter() {
       InverterStarted = true;
       delay(1500);
       ON_AC();
+      RoutineStatePreviousState = 1;
+      
    }
   Inverterstate = "Auto-Routing"; //Feedback parameter  
   SYSstate = "Auto Routine mode active";
