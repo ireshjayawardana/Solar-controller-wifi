@@ -23,6 +23,7 @@ float LOW_BAT_CUTOFF = 10.5;
 float GOOD_BAT_START = 12.0;
 bool SafeToStartInverter = false;
 bool InverterStarted =false;
+bool solarAvalible =false;
 float batV = 0;
 float batVR=0;
 float ADC_READ = 0;
@@ -181,7 +182,12 @@ int cl_state = server.client();
   myRA.addValue(batVR);
   batV = myRA.getAverage();
 
-  
+  if (batV > 13.0){
+    solarAvalible = true;
+  }
+  else{
+    solarAvalible = false;
+  }
   if (batV > LOW_BAT_CUTOFF){
     ON_GREEN();
     OFF_RED();
@@ -207,15 +213,17 @@ int cl_state = server.client();
     ON_INVERTER();
     SYSstate = "Inverter Running";
   }
-  if ((RoutineStatePreviousState == 1)&(!InverterStarted)& (SafeToStartInverter)){
+  if ((RoutineStatePreviousState == 1)&(!InverterStarted)& (solarAvalible)){
     ON_AC();
     delay(2000);
     InverterStarted = true;
+    manualOveride = false;
     ON_INVERTER();
     SYSstate = "Inverter Routine mode Running";
   }
 
- if ((ChangeOverState) & (SafeToStartInverter)& (!InverterStarted) & (!manualOveride) & (!LowBattery)){
+
+ if ((ChangeOverState) & (SafeToStartInverter)& (!InverterStarted) & ((!manualOveride)) & (!LowBattery)){
   InverterUp = millis();
   LOW_BAT_CUTOFF = 10.5;      //to get the  changerover turned
   if(batV > SOLAR_ABLE){
@@ -232,7 +240,7 @@ int cl_state = server.client();
       inverterRelayPreviousState =1;
   }
     
- if ((!ChangeOverState)& (!manualOveride)) {      //removed inverter started check - 
+ if ((!ChangeOverState)& ((!manualOveride))) {      //removed inverter started check - 
     OFF_INVERTER();
     InverterStarted = false;
     SYSstate = "Inverter Stopped, System good!";
@@ -354,7 +362,8 @@ void handleInverter() {
  }
   else if(t_state == "5")
  {
-  manualOveride = true;
+  manualOveride = false;
+  RoutineStatePreviousState = 1;
    if (batV > 13){
       ON_INVERTER();
       InverterStarted = true;
@@ -363,7 +372,12 @@ void handleInverter() {
       RoutineStatePreviousState = 1;
       
    }
-  Inverterstate = "Auto-Routing"; //Feedback parameter  
+   else{
+    OFF_INVERTER();
+    InverterStarted = false;
+    OFF_AC();
+   }
+  Inverterstate = "Auto-Routine"; //Feedback parameter  
   SYSstate = "Auto Routine mode active";
  }
  
