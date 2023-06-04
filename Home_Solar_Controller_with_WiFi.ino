@@ -19,7 +19,7 @@ const char* ssid = "knight2";
 const char* password = "1Knightrider!";
 //...................................//
 bool manualOveride = false;
-float LOW_BAT_CUTOFF = 10.5;
+float LOW_BAT_CUTOFF = 10.9;
 float GOOD_BAT_START = 12.0;
 bool SafeToStartInverter = false;
 bool InverterStarted =false;
@@ -41,7 +41,10 @@ const int ADD_INVERTER_ON_RELAY_STATE = 1;
 const int ADD_ROUTINE_STATE = 2;
 char inverterRelayPreviousState = 0;
 char ACOutRelayPreviousState = 0;
-int RoutineStatePreviousState = 0;
+char RoutineStatePreviousState = 1;
+
+unsigned long routineInterval = 0;
+bool routineEnable = true;
 //......................................//
 
 ESP8266WebServer server(80); //Server on port 80
@@ -182,7 +185,7 @@ int cl_state = server.client();
   myRA.addValue(batVR);
   batV = myRA.getAverage();
 
-  if (batV > 13.0){
+  if (batV > 13.3){
     solarAvalible = true;
   }
   else{
@@ -204,28 +207,40 @@ int cl_state = server.client();
     LowBattery = true;
     SafeToStartInverter = false;
     InverterStarted = false;
-    SYSstate = "Low battery, charge batery, inverter is Auto OFF";
+    SYSstate = "Low battery, charge battery, inverter is Auto OFF";
     inverterRelayPreviousState =0;
+    routineInterval = millis();
+    routineEnable = false;
+    
    // delay(2000);
+  }
+
+  if( millis() - routineInterval > 90000){
+     routineEnable = true;
   }
   if(inverterRelayPreviousState ==1){
     InverterStarted = true;
     ON_INVERTER();
     SYSstate = "Inverter Running";
   }
-  if ((RoutineStatePreviousState == 1)&(!InverterStarted)& (solarAvalible)){
-    ON_AC();
+  if ((RoutineStatePreviousState == 1)&(!InverterStarted)& (solarAvalible) & (routineEnable)){
+    
+    ON_INVERTER();
     delay(2000);
+    ON_AC();
+    ChangeOverState = 1;
+    RoutineStatePreviousState = 1;
     InverterStarted = true;
     manualOveride = false;
     ON_INVERTER();
+    inverterRelayPreviousState =1;
     SYSstate = "Inverter Routine mode Running";
   }
 
 
  if ((ChangeOverState) & (SafeToStartInverter)& (!InverterStarted) & ((!manualOveride)) & (!LowBattery)){
   InverterUp = millis();
-  LOW_BAT_CUTOFF = 10.5;      //to get the  changerover turned
+  LOW_BAT_CUTOFF = 10.8 ;      //to get the  changerover turned
   if(batV > SOLAR_ABLE){
     //LOW_BAT_CUTOFF = 12.55;
     GOOD_BAT_START = 13.6;
@@ -364,19 +379,19 @@ void handleInverter() {
  {
   manualOveride = false;
   RoutineStatePreviousState = 1;
-   if (batV > 13){
-      ON_INVERTER();
-      InverterStarted = true;
-      delay(1500);
-      ON_AC();
-      RoutineStatePreviousState = 1;
-      
-   }
-   else{
-    OFF_INVERTER();
-    InverterStarted = false;
-    OFF_AC();
-   }
+//   if (batV > 13){
+//      ON_INVERTER();
+//      InverterStarted = true;
+//      delay(1500);
+//      ON_AC();
+//      RoutineStatePreviousState = 1;
+//      ChangeOverState = 1;
+//   }
+//   else{
+//    OFF_INVERTER();
+//    InverterStarted = false;
+//    OFF_AC();
+//   }
   Inverterstate = "Auto-Routine"; //Feedback parameter  
   SYSstate = "Auto Routine mode active";
  }
