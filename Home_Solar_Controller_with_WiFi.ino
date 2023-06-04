@@ -185,7 +185,7 @@ int cl_state = server.client();
   myRA.addValue(batVR);
   batV = myRA.getAverage();
 
-  if (batV > 13.3){
+  if (batV > 13.0){
     solarAvalible = true;
   }
   else{
